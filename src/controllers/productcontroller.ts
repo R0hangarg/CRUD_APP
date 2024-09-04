@@ -1,14 +1,44 @@
-import { NextFunction, Request, Response } from "express";
+import { Request, Response } from "express";
 import Product from "../models/productModel";
 import { productValidation } from "../validations/productValidation";
+import { ProductType } from "../Interfaces/productInterface";
 
 //Get All Products
 export const getAllProducts = async(req:Request,res:Response)=>{
     try {
-        const products = await Product.find();
+
+        const page = parseInt(req.query.page as string) || 1 ;
+        const limit = parseInt(req.query.limit as string) || 2 ;
+
+        const skip = (page-1)*limit;
+
+        const {category,maxPrice,minPrice,name} = req.query;
+
+        const filter :{[key:string]:any} ={};
+
+        if(category){
+            filter.category=category;
+        }
+        if(maxPrice){
+            filter.price={...filter.price , $lte:Number(maxPrice)};
+        }
+        if(minPrice){
+            filter.price={...filter.price,$gte:Number(minPrice)};
+        }
+        if(name){
+            filter.name= { $regex: name, $options: 'i' };
+        }
+
+
+        const products:ProductType[]= await Product.find(filter).skip(skip).limit(limit);
+
+        const totalProducts = await Product.countDocuments(filter);
         
         res.status(200).json({
-            data: products
+            data: products,
+            totalProducts,
+            totalPages: Math.ceil(totalProducts / limit),
+            currentPage: page
         })
     } catch (error) {
         console.error("Error while fetching products:", error);
@@ -21,7 +51,7 @@ export const getAllProducts = async(req:Request,res:Response)=>{
 //Create New Product
 export const createProduct = async(req:Request,res:Response)=>{
     try {
-        const products = await productValidation.validateAsync(req.body);
+        const products:ProductType = await productValidation.validateAsync(req.body);
 
         if(!products){
             return res.send("Data is not valid")
@@ -63,7 +93,7 @@ export const getProductById = async(req:Request,res:Response)=>{
     try {
         const productId = await req.params.id;
 
-        const product = await Product.findById(productId)
+        const product:ProductType|null = await Product.findById(productId)
 
         if(!product){
             return res.status(404).send(`Product ${product} not found`);
@@ -88,25 +118,31 @@ export const updateProduct = async(req:Request,res:Response)=>{
     try {
         const productId = await req.params.id;
 
-        const product = await Product.findById(productId)
+        const product:ProductType|null = await Product.findById(productId)
 
         if(!product){
             return res.status(404).send(`Product ${product} not found`);
         }
 
-        const updatedProductData = productValidation.validateAsync(req.body);
+        const updatedProductData = req.body;
         
-        if(!updatedProductData){
-            return res.send("Data is not valid format");
-        }
-
-        const updatedProduct = new Product({
-///HOW TO update only that properties that are required to update
-        })
+        // if(!updatedProductData){
+        //     return res.send("Data is not valid format");
+        // }
+        
+        ///HOW TO update only that properties that are required to update
+        const updatedProduct = await Product.findByIdAndUpdate(
+            productId,
+            { $set: updatedProductData }, // Update only specified fields
+            {
+                new: true, // Return the updated document
+                runValidators: true // Run validation on the update
+            }
+        );
         
         res.status(200).json({
             success: true,
-            data: updateProduct
+            data: updatedProduct
         })
     } catch (error) {
         console.error("Error updating product:", error);
@@ -122,7 +158,7 @@ export const deleteProduct = async(req:Request,res:Response)=>{
     try {
         const productId = await req.params.id;
 
-        const product = await Product.findById(productId)
+        const product:ProductType|null = await Product.findById(productId)
 
         if(!product){
             return res.status(404).send(`Product ${product} not found`);

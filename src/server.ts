@@ -1,4 +1,4 @@
-import express,{Request,Response} from 'express'
+import express from 'express'
 import { connectDB } from './database/db';
 import router from './routes/products';
 

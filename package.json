@@ -16,10 +16,20 @@
     "mongoose": "^8.6.0"
   },
   "devDependencies": {
+    "@eslint/js": "^9.9.1",
     "@types/express": "^4.17.21",
     "@types/node": "^22.5.2",
+    "@typescript-eslint/eslint-plugin": "^8.4.0",
+    "@typescript-eslint/parser": "^8.4.0",
+    "eslint": "^8.57.0",
+    "eslint-plugin-import": "^2.30.0",
+    "eslint-plugin-node": "^11.1.0",
+    "eslint-plugin-promise": "^7.1.0",
+    "eslint-plugin-react": "^7.35.2",
+    "globals": "^15.9.0",
     "nodemon": "^3.1.4",
     "ts-node": "^10.9.2",
-    "typescript": "^5.5.4"
+    "typescript": "^5.5.4",
+    "typescript-eslint": "^8.4.0"
   }
 }

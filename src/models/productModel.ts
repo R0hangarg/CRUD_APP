@@ -1,4 +1,5 @@
 import mongoose, { Schema } from "mongoose";
+import { ProductType } from "../Interfaces/productInterface";
 
 const productSchema :Schema = new Schema({
     name:{
@@ -34,6 +35,6 @@ const productSchema :Schema = new Schema({
     
 },{ timestamps: true })
 
-const Product = mongoose.model('Product', productSchema);
+const Product = mongoose.model<ProductType>('Product', productSchema);
 
 export default Product;
