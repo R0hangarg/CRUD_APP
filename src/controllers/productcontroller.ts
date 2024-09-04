@@ -12,9 +12,9 @@ export const getAllProducts = async(req:Request,res:Response)=>{
 
         const skip = (page-1)*limit;
 
-        const {category,maxPrice,minPrice,name} = req.query;
+        const {category,maxPrice,minPrice,name} = (req.query);
 
-        const filter :{[key:string]:any} ={};
+        const filter :{[key:string]: any} ={};
 
         if(category){
             filter.category=category;
@@ -36,8 +36,10 @@ export const getAllProducts = async(req:Request,res:Response)=>{
         
         res.status(200).json({
             data: products,
-            totalProducts,
-            totalPages: Math.ceil(totalProducts / limit),
+            metadata:{
+                totalProducts,
+                totalPages: Math.ceil(totalProducts / limit),
+            },
             currentPage: page
         })
     } catch (error) {
