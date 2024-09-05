@@ -1,13 +1,21 @@
 import express from 'express'
 import { connectDB } from './database/db';
-import router from './routes/products';
+import { isAuthenicated } from './controllers/userController';
+import userRouter from './routes/userRoutes';
+import productRouter from './routes/productsRoutes';
+import cookieParser from 'cookie-parser'
 
 const app = express();
 
 //middlewares
 app.use(express.json())
+app.use(cookieParser());
 app.use(express.urlencoded({extended: true}))
-app.use('/api',router)
+
+
+
+app.use('/api',userRouter)
+app.use('/api/products',isAuthenicated, productRouter);
 
 connectDB.then(()=>{
     app.listen(process.env.PORT || 3000,()=>{

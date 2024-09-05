@@ -128,11 +128,6 @@ export const updateProduct = async(req:Request,res:Response)=>{
 
         const updatedProductData = req.body;
         
-        // if(!updatedProductData){
-        //     return res.send("Data is not valid format");
-        // }
-        
-        ///HOW TO update only that properties that are required to update
         const updatedProduct = await Product.findByIdAndUpdate(
             productId,
             { $set: updatedProductData }, // Update only specified fields
@@ -177,6 +172,36 @@ export const deleteProduct = async(req:Request,res:Response)=>{
         res.status(500).json({
             success: false,
             message: "An error occurred while deleting product."
+        });
+    }
+}
+
+
+//Controller to show aggreagted data 
+
+export const statsOfProduct =async(req:Request,res:Response)=>{
+    try {
+        const stats = await Product.aggregate([
+            {
+              $group: {
+                _id: "$category",
+                totalProducts: {  $sum: 1 },
+                averagePrice: { $avg: "$price" },
+                totalStock: { $sum: "$stock" }
+              }
+            }
+          ]);
+      
+          res.status(200).json({
+            success: true,
+            data: stats,
+          });
+        
+    } catch (error) {
+        console.log("Error Showing Stats",error);
+        res.status(500).json({
+            success: false,
+            message:"An error occurred while getting stats of products"
         });
     }
 }
