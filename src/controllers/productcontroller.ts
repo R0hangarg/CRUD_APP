@@ -93,7 +93,7 @@ export const createProduct = async(req:Request,res:Response)=>{
 //Get Product by its id
 export const getProductById = async(req:Request,res:Response)=>{
     try {
-        const productId = await req.params.id;
+        const productId =  req.params.id;
 
         const product:ProductType|null = await Product.findById(productId)
 

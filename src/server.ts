@@ -24,3 +24,5 @@ connectDB.then(()=>{
 }).catch((error)=>{
     console.log(`Error occured ${error}`)
 })
+
+export default app

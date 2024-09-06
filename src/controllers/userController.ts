@@ -2,10 +2,12 @@ import { NextFunction, Request, Response } from "express";
 import User from "../models/userModel";
 import jwt from "jsonwebtoken";
 import bcrypt from 'bcrypt';
+import { AuthenticatedRequest, userType } from "../Interfaces/userInterface";
+import { userValidation } from "../validations/userValidations";
 
 export const registerUser = async(req:Request,res:Response)=>{
     try {
-        const user = req.body;
+        const user:userType = await userValidation.validateAsync(req.body);
 
     const userCheck = await User.findOne({
         username:user.username
@@ -15,9 +17,10 @@ export const registerUser = async(req:Request,res:Response)=>{
         return res.send("User Already Exits !!!");
     }
 
+    const hashedPassword = await bcrypt.hash(user.password, 10);
     const newUser = new User({
         username:user.username,
-        password:user.password,
+        password:hashedPassword,
         role:user.role
     });
 
@@ -39,7 +42,7 @@ export const registerUser = async(req:Request,res:Response)=>{
 export const loginUser = async(req:Request,res:Response)=>{
     try {
         const JWT_SECRET = process.env.JWT_SECRET || "your-JWT-SecretKey";
-        const {username, password} = req.body;
+        const {username, password} = await userValidation.validateAsync(req.body);
 
         const userCheck = await User.findOne({
             username:username
@@ -49,10 +52,10 @@ export const loginUser = async(req:Request,res:Response)=>{
             return res.status(400).send("No such user found please Register first")
         }
 
-        const isMatch = bcrypt.compare(password,userCheck.password)
+        const isMatch = await bcrypt.compare(password,userCheck.password)
 
         if(!isMatch){
-            return res.status(400).json({ success: false, message: 'Incorrect password' });
+            return res.status(400).json({ success: false, message: "Incorrect password" });
         }
 
         const payload = {
@@ -79,17 +82,11 @@ export const loginUser = async(req:Request,res:Response)=>{
     }
 }
 
-
-interface AuthenticatedRequest extends Request {
-    user?: {
-      role: string;
-    };
-  }  
-
+// Controller to check authentication of user 
 export const isAuthenicated = async(req:AuthenticatedRequest,res:Response,next:NextFunction)=>{
     try {
         const JWT_SECRET = process.env.JWT_SECRET || "your-JWT-SecretKey";
-        const token = req.cookies['token'];
+        const token = req.cookies['token'] || req.headers['authorization']?.split(' ')[1];
         
         const decoded = jwt.verify(token,JWT_SECRET) as { username: string; role: string };;
         console.log(decoded)
@@ -108,6 +105,7 @@ export const isAuthenicated = async(req:AuthenticatedRequest,res:Response,next:N
     }
 }
 
+// Controller to check authorization of user after checking whether it is authenticated or not. 
 export const isAuthorization = async(req: AuthenticatedRequest, res: Response, next: NextFunction) => {
       const userRole = res.locals.user?.role; // Assuming user info is attached to req.user
       
