@@ -3,7 +3,7 @@ import User from "../models/userModel";
 import jwt from "jsonwebtoken";
 import bcrypt from 'bcrypt';
 import { AuthenticatedRequest, userType } from "../Interfaces/userInterface";
-import { userValidation } from "../validations/userValidations";
+import { loginValidations, userValidation } from "../validations/userValidations";
 
 export const registerUser = async(req:Request,res:Response)=>{
     try {
@@ -42,7 +42,7 @@ export const registerUser = async(req:Request,res:Response)=>{
 export const loginUser = async(req:Request,res:Response)=>{
     try {
         const JWT_SECRET = process.env.JWT_SECRET || "your-JWT-SecretKey";
-        const {username, password} = await userValidation.validateAsync(req.body);
+        const {username, password} = await loginValidations.validateAsync(req.body);
 
         const userCheck = await User.findOne({
             username:username

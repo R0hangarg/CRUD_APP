@@ -2,6 +2,8 @@ import { Request, Response } from "express";
 import Product from "../models/productModel";
 import { productValidation } from "../validations/productValidation";
 import { ProductType } from "../Interfaces/productInterface";
+import client from "../redis/redisClient";
+
 
 //Get All Products
 export const getAllProducts = async(req:Request,res:Response)=>{
@@ -29,11 +31,20 @@ export const getAllProducts = async(req:Request,res:Response)=>{
             filter.name= { $regex: name, $options: 'i' };
         }
 
-
+        //CACHING 
+        const cacheKey = `products:${page}:${limit}:${JSON.stringify(filter)}`;
+        const cachedData = await client.get(cacheKey);
+    
+        if (cachedData) {
+          // If cached, return cached data
+          return res.json(JSON.parse(cachedData));
+        }
+    
+        // Otherwise, fetch from the database
         const products:ProductType[]= await Product.find(filter).skip(skip).limit(limit);
 
         const totalProducts = await Product.countDocuments(filter);
-        
+
         res.status(200).json({
             data: products,
             metadata:{
@@ -77,6 +88,13 @@ export const createProduct = async(req:Request,res:Response)=>{
         
         const savedProduct = await newProduct.save()
 
+        const cacheKey = `product:${savedProduct._id}`;;
+
+        // Cache the updated product list
+        await client.set(cacheKey, JSON.stringify(savedProduct), {
+            EX: 3600, // Cache expiration time in seconds
+        });
+
         res.status(200).json({
             success: true,
             data: savedProduct
@@ -94,6 +112,16 @@ export const createProduct = async(req:Request,res:Response)=>{
 export const getProductById = async(req:Request,res:Response)=>{
     try {
         const productId =  req.params.id;
+        const cacheKey = `product:${productId}`;
+
+        const cachedData = await client.get(cacheKey);
+
+        if (cachedData) {
+            // If cached, return cached data
+            return res.json({
+                data: JSON.parse(cachedData)
+            });
+        }
 
         const product:ProductType|null = await Product.findById(productId)
 
@@ -125,6 +153,10 @@ export const updateProduct = async(req:Request,res:Response)=>{
         if(!product){
             return res.status(404).send(`Product ${product} not found`);
         }
+        const cacheKey = `product:${productId}`;
+        await client.set(cacheKey, JSON.stringify(product), {
+            EX: 3600, // Cache expiration time in seconds
+        });
 
         const updatedProductData = req.body;
         
@@ -160,6 +192,9 @@ export const deleteProduct = async(req:Request,res:Response)=>{
         if(!product){
             return res.status(404).send(`Product ${product} not found`);
         }
+        
+        const cacheKey = `product:${productId}`;
+        await client.del(cacheKey);
 
         await Product.findByIdAndDelete(productId);
         
