@@ -7,3 +7,11 @@ export const productValidation = joi.object({
     stock:joi.number().required(),
     category:joi.string().required(),
 })
+
+export const updateProductValidation = joi.object({
+    name:joi.string().min(6),
+    price:joi.number(),
+    description:joi.string(),
+    stock:joi.number(),
+    category:joi.string(),
+})

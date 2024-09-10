@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import Product from "../models/productModel";
-import { productValidation } from "../validations/productValidation";
+import { productValidation, updateProductValidation } from "../validations/productValidation";
 import { ProductType } from "../Interfaces/productInterface";
 import client from "../redis/redisClient";
 
@@ -31,22 +31,16 @@ export const getAllProducts = async(req:Request,res:Response)=>{
             filter.name= { $regex: name, $options: 'i' };
         }
 
-        //CACHING 
-        const cacheKey = `products:${page}:${limit}:${JSON.stringify(filter)}`;
-        const cachedData = await client.get(cacheKey);
-    
-        if (cachedData) {
-          // If cached, return cached data
-          return res.json(JSON.parse(cachedData));
-        }
-    
         // Otherwise, fetch from the database
         const products:ProductType[]= await Product.find(filter).skip(skip).limit(limit);
 
         const totalProducts = await Product.countDocuments(filter);
 
         res.status(200).json({
+            status:true,
+            message:"Products fetched successfully",
             data: products,
+            error:null,
             metadata:{
                 totalProducts,
                 totalPages: Math.ceil(totalProducts / limit),
@@ -54,9 +48,11 @@ export const getAllProducts = async(req:Request,res:Response)=>{
             currentPage: page
         })
     } catch (error) {
-        console.error("Error while fetching products:", error);
         res.status(500).json({
-            message: "An error occurred while fetching products."
+            status:false,
+            message: "An error occurred while fetching products.",
+            data:null,
+            error:error,
         });
     }
 }
@@ -66,16 +62,17 @@ export const createProduct = async(req:Request,res:Response)=>{
     try {
         const products:ProductType = await productValidation.validateAsync(req.body);
 
-        if(!products){
-            return res.send("Data is not valid")
-        }
-
         const productCheck = await Product.findOne({
             name:products.name
         })
 
         if(productCheck){
-            return res.send("Product already exists");
+            return res.json({
+                status:false,
+                message:"Product already exists",
+                data:null,
+                error:null
+            });
         }
 
         const newProduct = new Product({
@@ -97,13 +94,17 @@ export const createProduct = async(req:Request,res:Response)=>{
 
         res.status(200).json({
             success: true,
-            data: savedProduct
+            message:"Product Created Successfullly",
+            data: savedProduct,
+            error:null
         })
     } catch (error) {
         console.error("Error creating products:", error);
         res.status(500).json({
             success: false,
-            message: "An error occurred while creating products."
+            message: "An error occurred while creating products.",
+            data:null,
+            error:error
         });
     }
 }
@@ -118,26 +119,38 @@ export const getProductById = async(req:Request,res:Response)=>{
 
         if (cachedData) {
             // If cached, return cached data
-            return res.json({
-                data: JSON.parse(cachedData)
+            return res.status(200).json({
+                status:true,
+                message:"Product Id Found",
+                data: JSON.parse(cachedData),
+                error:null
             });
         }
 
         const product:ProductType|null = await Product.findById(productId)
 
         if(!product){
-            return res.status(404).send(`Product ${product} not found`);
+            return res.status(404).json({
+                status:false,
+                message:`Product ${product} not found`,
+                data:null,
+                error:`Product ${product} not found`
+            });
         }
         
         res.status(200).json({
             success: true,
-            data: product
+            message:"Product Id Found",
+            data: product,
+            error:null
         })
     } catch (error) {
         console.error("Error fetching product Id:", error);
         res.status(500).json({
             success: false,
-            message: "An error occurred while fetching product Id."
+            message: "An error occurred while fetching product Id.",
+            data:null,
+            error:error
         });
     }
 }
@@ -151,15 +164,23 @@ export const updateProduct = async(req:Request,res:Response)=>{
         const product:ProductType|null = await Product.findById(productId)
 
         if(!product){
-            return res.status(404).send(`Product ${product} not found`);
+            return res.status(404).json({
+                status:false,
+                message:`Product ${product} not found`,
+                data:null,
+                error:`Product ${product} not found`
+            });
         }
+
         const cacheKey = `product:${productId}`;
-        await client.set(cacheKey, JSON.stringify(product), {
+        
+
+        const updatedProductData = updateProductValidation.validateAsync(req.body);
+        
+        await client.set(cacheKey, JSON.stringify(updatedProductData), {
             EX: 3600, // Cache expiration time in seconds
         });
 
-        const updatedProductData = req.body;
-        
         const updatedProduct = await Product.findByIdAndUpdate(
             productId,
             { $set: updatedProductData }, // Update only specified fields
@@ -170,14 +191,18 @@ export const updateProduct = async(req:Request,res:Response)=>{
         );
         
         res.status(200).json({
-            success: true,
-            data: updatedProduct
+            status:true,
+            message:"Product updated successfully",
+            data: updatedProduct,
+            error:null
         })
     } catch (error) {
         console.error("Error updating product:", error);
         res.status(500).json({
-            success: false,
-            message: "An error occurred while updating product."
+            status: false,
+            message: "An error occurred while updating product.",
+            data:null,
+            error:error
         });
     }
 }
@@ -190,7 +215,12 @@ export const deleteProduct = async(req:Request,res:Response)=>{
         const product:ProductType|null = await Product.findById(productId)
 
         if(!product){
-            return res.status(404).send(`Product ${product} not found`);
+            return res.status(404).json({
+                status:false,
+                message:`Product ${product} not found`,
+                data:null,
+                error:`Product ${product} not found`
+            });
         }
         
         const cacheKey = `product:${productId}`;
@@ -199,14 +229,18 @@ export const deleteProduct = async(req:Request,res:Response)=>{
         await Product.findByIdAndDelete(productId);
         
         res.status(200).json({
-            success: true,
-            message:"Product Deleted"
+            status: true,
+            message:"Product Deleted",
+            data:null,
+            error:null
         })
     } catch (error) {
         console.error("Error deleting product:", error);
         res.status(500).json({
-            success: false,
-            message: "An error occurred while deleting product."
+            status: false,
+            message: "An error occurred while deleting product.",
+            data:null,
+            error:error
         });
     }
 }
@@ -228,15 +262,19 @@ export const statsOfProduct =async(req:Request,res:Response)=>{
           ]);
       
           res.status(200).json({
-            success: true,
+            status: true,
+            message:"Successfully fetched the data",
             data: stats,
+            error:null
           });
         
     } catch (error) {
         console.log("Error Showing Stats",error);
         res.status(500).json({
-            success: false,
-            message:"An error occurred while getting stats of products"
+            status: false,
+            message:"An error occurred while getting stats of products",
+            data:null,
+            error:error
         });
     }
 }

@@ -14,7 +14,12 @@ export const registerUser = async(req:Request,res:Response)=>{
     });
 
     if(userCheck){
-        return res.send("User Already Exits !!!");
+        return res.status(409).json({
+            status:false,
+            message:"User Already Exits !!!",
+            data:null,
+            error:null
+        });
     }
 
     const hashedPassword = await bcrypt.hash(user.password, 10);
@@ -27,14 +32,18 @@ export const registerUser = async(req:Request,res:Response)=>{
     const savedUser = await newUser.save();
 
     res.status(200).json({
-        success: true,
-        data: savedUser
+        status: true,
+        message:"User registered successfully",
+        data: savedUser,
+        error:null
     })
     } catch (error) {
         console.error("Error creating user:", error);
         res.status(500).json({
-            success: false,
-            message: "An error occurred while creating user."
+            status: false,
+            message: "An error occurred while creating user.",
+            data:null,
+            error:error
         });
     }
 }
@@ -49,35 +58,51 @@ export const loginUser = async(req:Request,res:Response)=>{
         });
         
         if(!userCheck){
-            return res.status(400).send("No such user found please Register first")
+            return res.status(404).json({
+                status:false,
+                message:"No such user found please Register first",
+                data:null,
+                error:null
+            })
         }
 
         const isMatch = await bcrypt.compare(password,userCheck.password)
 
         if(!isMatch){
-            return res.status(400).json({ success: false, message: "Incorrect password" });
+            return res.status(400).json({ 
+                status: false,
+                message: "Incorrect password", 
+                data:null,
+                error:null
+            });
         }
 
         const payload = {
             username: username,
             role: userCheck.role, // Include role in token payload
           };
+
         const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '1h' });
 
         res.cookie('token', token, {
           httpOnly: true, // JavaScript can't access the cookie
           maxAge: 3600000, // Cookie expiration time (1 hour in milliseconds)
           sameSite: 'strict' // Prevent CSRF attacks
-        }).send({
-            token:token,
+        }).status(200).json({
+            status:true,
+            message:"Loggin user successfully",
+            data:token,
+            error:null,
             role:userCheck.role
         });
         
     } catch (error) {
         console.error("Error Logging user:", error);
         res.status(500).json({
-            success: false,
-            message: "An error occurred while logging user."
+            status: false,
+            message: "An error occurred while logging user.",
+            data:null,
+            error:error
         });
     }
 }
@@ -91,16 +116,22 @@ export const isAuthenicated = async(req:AuthenticatedRequest,res:Response,next:N
         const decoded = jwt.verify(token,JWT_SECRET) as { username: string; role: string };;
         console.log(decoded)
         if(!decoded){
-            return res.status(400).send("login First")
+            return res.status(400).json({
+                status:false,
+                message:"login First",
+                data:null,
+                error:null
+            })
         }
 
         res.locals.user ={role: decoded.role , username:decoded.username}
         next();
     } catch (error) {
         res.status(500).json({
-            success: false,
+            status: false,
+            message: "An error occurred while logging user.",
+            data:null,
             error:error,
-            message: "An error occurred while logging user."
         });
     }
 }
@@ -111,8 +142,10 @@ export const isAuthorization = async(req: AuthenticatedRequest, res: Response, n
       
       if (!userRole) {
         return res.status(401).json({
-          success: false,
-          message: 'User is not authenticated. Please log in.'
+          status: false,
+          message: 'User is not authenticated. Please log in.',
+          data:null,
+          error:null
         });
       }
       
@@ -122,14 +155,17 @@ export const isAuthorization = async(req: AuthenticatedRequest, res: Response, n
           return next();
         } else {
           return res.status(403).json({
-            success: false,
-            message: 'Access denied. You do not have the required permissions.'
+            status: false,
+            message: 'Access denied. You do not have the required permissions.',
+            data:null,
+            error:null
           });
         }
       } catch (error) {
         res.status(500).json({
-          success: false,
+          status: false,
           message: 'An error occurred while checking user permissions.',
+          data:null,
           error:error
         });
       }
