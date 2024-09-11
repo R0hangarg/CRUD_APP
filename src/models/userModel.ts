@@ -17,6 +17,13 @@ const userSchema:Schema = new Schema({
         enum:['admin','user'],
         default:'user',
         required:true
+    },
+    email:{
+        type:String,
+    },
+    phone:{
+        type:Number,
+        min:10
     }
 });
 

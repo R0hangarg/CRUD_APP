@@ -1,9 +1,11 @@
 import { Request } from "express";
 
 export interface userType{
-    username:string,
+    username?:string,
     password:string,
-    role:string
+    role:string,
+    email:string,
+    phone:number
 }
 
 export interface AuthenticatedRequest extends Request {
